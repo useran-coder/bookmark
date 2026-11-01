@@ -68,9 +68,9 @@
               border-bottom:1px solid var(--line);margin-bottom:8px;font-weight:700}
   .drawer .x{background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer}
   .mi{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:9px;border:none;
-      background:none;color:var(--text);font:inherit;font-size:15px;cursor:pointer;text-align:left;text-decoration:none}
+      background:none;color:var(--text);font:inherit;font-size:15px;font-weight:400;cursor:pointer;text-align:left;text-decoration:none}
   .mi:hover{background:var(--card-h)}
-  .msec{font-size:11px;color:var(--dim);padding:14px 12px 4px;letter-spacing:.05em}
+  .msec{font-size:11px;color:var(--dim);padding:4px 12px 4px;letter-spacing:.05em}
   /* Member 창 — 오른쪽에서 밀려 나옴 */
   .modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s}
   .modal.on{opacity:1;pointer-events:auto}
@@ -129,7 +129,6 @@
 <div class="scrim" id="scrim"></div>
 <nav class="drawer" id="drawer" aria-label="메뉴">
   <div class="dh"><span>메뉴</span><button class="x" id="drawerX" type="button" aria-label="닫기">×</button></div>
-  <button class="mi" id="miMember" type="button">👥 Member</button>
   <div class="msec">바로가기</div>
   <div id="drawerLinks"></div>
 </nav>
@@ -470,11 +469,43 @@
     return '<div class="acct"><span class="av">'+esc(initial(cur.name||cur.id))+'</span><div>'+
       '<div class="nm">'+esc(cur.name||'')+' <span class="tag adm">'+esc(ROLE[cur.role]||cur.role||'')+'</span></div>'+
       '<div class="sm">'+esc(cur.id)+' · 로그인 남은 시간 '+leftTxt+(cur.src==='sales'?' · 매출분석도구 로그인 사용':'')+'</div></div>'+
-      (cur.src==='own' ? '<button type="button" id="acctOut">로그아웃</button>' : '')+'</div>';
+      '<button type="button" id="acctOut">로그아웃</button></div>';
+  }
+  // 로그아웃: 서버에 알리고(실패해도 진행) 이 화면·매출분석도구 로그인 모두 지움(서버 주소는 남김)
+  function clearSalesLogin(){
+    return new Promise(function(res){
+      try{
+        var created=false, rq=indexedDB.open('dbpastec_sales');
+        rq.onupgradeneeded=function(){ created=true; try{ rq.transaction.abort(); }catch(e){} };
+        rq.onerror=function(){ res(); };
+        rq.onsuccess=function(){
+          var db=rq.result;
+          if(created || !db.objectStoreNames.contains('kv')){ db.close(); return res(); }
+          try{
+            var st=db.transaction('kv','readwrite').objectStore('kv'), g=st.get('auth_v1');
+            g.onsuccess=function(){
+              var v=g.result||{};
+              var put=st.put({token:'',id:'',name:'',role:'',exp:0,urlOverride:v.urlOverride||''},'auth_v1');
+              put.onsuccess=function(){ db.close(); res(); };
+              put.onerror=function(){ db.close(); res(); };
+            };
+            g.onerror=function(){ db.close(); res(); };
+          }catch(e){ db.close(); res(); }
+        };
+      }catch(e){ res(); }
+    });
+  }
+  function logout(){
+    var c=cur; setOwn(null); cur=null; renderWho(); showLogin('로그아웃했습니다.');
+    if(c && c.token){ call({action:'auLogout', token:c.token}).catch(function(){}); }
+    if(c && c.src==='sales') clearSalesLogin();
   }
   function bindAcct(){
     var b=$('acctOut'); if(!b) return;
-    b.addEventListener('click', function(){ setOwn(null); cur=null; renderWho(); showLogin(''); });
+    b.addEventListener('click', function(){
+      if(cur && cur.src==='sales' && !confirm('이 PC의 매출분석도구도 함께 로그아웃됩니다. 로그아웃할까요?')) return;
+      logout();
+    });
   }
   // 마지막 로그인: 한국 시간 + 며칠 전
   function lastLogin(v){
@@ -496,7 +527,6 @@
     refreshWho().then(function(c){ if(c) loadList(); else showLogin(''); });
   }
   function closeMem(){ $('memModal').classList.remove('on'); }
-  $('miMember').addEventListener('click', openMem);
   $('memX').addEventListener('click', closeMem);
   $('memModal').addEventListener('click', function(e){ if(e.target===$('memModal')) closeMem(); });
   $('memReload').addEventListener('click', function(){ if(cur) loadList(); else openMem(); });
