@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>동방파스텍 업무 도구</title>
+<style>
+  :root{
+    --bg:#000; --card:#111214; --card-h:#1a1c20; --line:#2a2d33;
+    --text:#f2f3f5; --sub:#9aa0a8; --dim:#6b7078;
+    --sales:#3b82f6; --purchase:#10b981; --new:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text)}
+  body{font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+       min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:56px 16px 32px}
+  header{text-align:center;margin-bottom:40px}
+  .co{font-size:14px;letter-spacing:.2em;color:var(--sub);margin:0 0 10px}
+  h1{font-size:30px;margin:0;font-weight:700}
+  .today{margin-top:10px;font-size:14px;color:var(--dim)}
+  main{width:100%;max-width:720px;display:flex;flex-direction:column;gap:16px}
+  .row{display:flex;align-items:stretch;gap:16px}
+  a.btn{flex:1 1 auto;display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--text);
+        background:var(--card);border:1px solid var(--line);border-left:5px solid var(--c);
+        border-radius:14px;padding:22px 24px;transition:background .15s,transform .15s}
+  a.btn:hover,a.btn:focus-visible{background:var(--card-h);transform:translateY(-2px);outline:none}
+  .ico{font-size:30px;line-height:1}
+  .name{font-size:21px;font-weight:700}
+  .url{font-size:12px;color:var(--dim);margin-top:4px}
+  .arrow{margin-left:auto;font-size:22px;color:var(--c)}
+  .upd{flex:0 0 236px;background:var(--card);border:1px solid var(--line);border-radius:14px;
+       padding:14px 16px;display:flex;flex-direction:column;justify-content:center}
+  .upd .lb{font-size:12px;color:var(--sub)}
+  .upd .dt{white-space:nowrap;font-size:17px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+  .upd .meta{font-size:12px;color:var(--sub);margin-top:4px}
+  .badge{display:inline-block;font-size:11px;font-weight:700;color:#000;background:var(--new);
+         border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+  .err{color:#f87171}
+  footer{margin-top:auto;padding-top:40px;font-size:12px;color:var(--dim);text-align:center}
+  footer button{background:none;border:1px solid var(--line);color:var(--sub);border-radius:8px;
+                padding:5px 12px;cursor:pointer;font:inherit;margin-left:8px}
+  footer button:hover{color:var(--text)}
+  @media (max-width:600px){
+    body{padding-top:36px}
+    h1{font-size:24px}
+    .row{flex-direction:column;gap:0}
+    a.btn{border-radius:14px 14px 0 0;padding:18px}
+    .upd{flex:none;border-top:none;border-radius:0 0 14px 14px;flex-direction:row;flex-wrap:wrap;
+         align-items:baseline;justify-content:flex-start;gap:4px 10px;padding:10px 18px}
+    .upd .dt,.upd .meta{margin-top:0}
+  }
+</style>
+</head>
+<body>
+<header>
+  <p class="co">(주)동방파스텍</p>
+  <h1>업무 분석 도구</h1>
+  <div class="today" id="today"></div>
+</header>
+
+<main id="list"></main>
+
+<footer>
+  업데이트 일자는 GitHub 최신 배포 기록 기준 · <span id="checked"></span>
+  <button type="button" id="reload">새로 확인</button>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  var OWNER = 'useran-coder';
+  var TOOLS = [
+    { key:'sales',    name:'매출 분석 도구', icon:'📈', color:'var(--sales)',
+      url:'https://useran-coder.github.io/sales/',    repo:'sales' },
+    { key:'purchase', name:'매입 분석 도구', icon:'📦', color:'var(--purchase)',
+      url:'https://useran-coder.github.io/purchase/', repo:'purchase' }
+  ];
+  var CACHE_KEY = 'dbfHomeUpd_v1';
+  var CACHE_MS = 10 * 60 * 1000;   // 10분 안에는 다시 묻지 않음 (GitHub 무료 조회 한도 보호)
+  var WD = ['일','월','화','수','목','금','토'];
+
+  function $(id){ return document.getElementById(id); }
+  function pad(n){ return (n<10?'0':'') + n; }
+  function kst(d){ // 한국 시간 기준 날짜 조각
+    var k = new Date(d.getTime() + 9*3600*1000);
+    return { y:k.getUTCFullYear(), m:k.getUTCMonth()+1, d:k.getUTCDate(), w:k.getUTCDay(),
+             h:k.getUTCHours(), mi:k.getUTCMinutes() };
+  }
+  function fmtDate(d){ var p=kst(d); return p.y+'-'+pad(p.m)+'-'+pad(p.d)+' ('+WD[p.w]+')'; }
+  function fmtTime(d){ var p=kst(d); return pad(p.h)+':'+pad(p.mi); }
+  function dayDiff(d){
+    var a=kst(d), b=kst(new Date());
+    return Math.round((Date.UTC(b.y,b.m-1,b.d) - Date.UTC(a.y,a.m-1,a.d)) / 86400000);
+  }
+  function ago(n){ return n<=0 ? '오늘' : n===1 ? '어제' : n+'일 전'; }
+  function readCache(){ try{ return JSON.parse(localStorage.getItem(CACHE_KEY)||'null'); }catch(e){ return null; } }
+  function writeCache(v){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(v)); }catch(e){} }
+
+  var p = kst(new Date());
+  $('today').textContent = '오늘 ' + p.y + '년 ' + p.m + '월 ' + p.d + '일 (' + WD[p.w] + ')';
+
+  // 화면 그리기
+  var list = $('list');
+  TOOLS.forEach(function(t){
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML =
+      '<a class="btn" style="--c:'+t.color+'" href="'+t.url+'" target="_blank" rel="noopener">' +
+        '<span class="ico">'+t.icon+'</span>' +
+        '<span><div class="name">'+t.name+'</div><div class="url">'+t.url.replace('https://','')+'</div></span>' +
+        '<span class="arrow">→</span></a>' +
+      '<div class="upd" id="upd-'+t.key+'"><span class="lb">마지막 업데이트</span>' +
+        '<span class="dt">확인 중…</span><span class="meta"></span></div>';
+    list.appendChild(row);
+  });
+
+  function show(t, info){
+    var box = $('upd-'+t.key);
+    var dt = box.querySelector('.dt'), meta = box.querySelector('.meta');
+    if(!info || !info.date){
+      dt.innerHTML = '<span class="err">확인 못 함</span>';
+      meta.textContent = '잠시 후 «새로 확인»';
+      return;
+    }
+    var d = new Date(info.date), n = dayDiff(d);
+    dt.innerHTML = fmtDate(d) + (n<=0 ? '<span class="badge">NEW</span>' : '');
+    meta.textContent = fmtTime(d) + ' · ' + ago(n) + (info.ver ? ' · ' + info.ver : '');
+  }
+
+  // 1) index.html 최신 커밋 날짜  2) 파일 앞부분에서 실제 버전 번호
+  function fetchTool(t){
+    var api = 'https://api.github.com/repos/'+OWNER+'/'+t.repo+'/commits?path=index.html&per_page=1';
+    var raw = 'https://raw.githubusercontent.com/'+OWNER+'/'+t.repo+'/main/index.html';
+    var commit = fetch(api, {headers:{Accept:'application/vnd.github+json'}})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(a){
+        var c = a && a[0] && a[0].commit; if(!c) throw new Error('no commit');
+        var m = /v\d{2,5}/.exec(c.message||'');
+        return { date:(c.committer||c.author).date, verMsg: m ? m[0] : '' };
+      });
+    var ver = fetch(raw, {headers:{Range:'bytes=0-40000'}, cache:'no-store'})
+      .then(function(r){ return r.ok ? r.text() : ''; })
+      .then(function(s){
+        var m = /APP_BUILD\s*=\s*['"](v\d+)['"]/.exec(s) || /<title>[^<]*?(v\d+)\s*<\/title>/.exec(s);
+        return m ? m[1] : '';
+      })
+      .catch(function(){ return ''; });
+    return Promise.all([commit, ver]).then(function(r){
+      return { date:r[0].date, ver: r[1] || r[0].verMsg };
+    });
+  }
+
+  function load(force){
+    var cache = readCache() || {};
+    var fresh = !force && cache.at && (Date.now() - cache.at < CACHE_MS);
+    if(fresh){
+      TOOLS.forEach(function(t){ show(t, cache.data && cache.data[t.key]); });
+      $('checked').textContent = fmtTime(new Date(cache.at)) + ' 확인';
+      return;
+    }
+    TOOLS.forEach(function(t){ $('upd-'+t.key).querySelector('.dt').textContent = '확인 중…'; });
+    var data = {}, okAll = true;
+    Promise.all(TOOLS.map(function(t){
+      return fetchTool(t).then(function(info){ data[t.key] = info; show(t, info); })
+        .catch(function(){
+          okAll = false;
+          var old = cache.data && cache.data[t.key];   // 실패하면 지난 확인값이라도 표시
+          data[t.key] = old || null;
+          show(t, old);
+          if(old) $('upd-'+t.key).querySelector('.meta').textContent += ' (지난 확인값)';
+        });
+    })).then(function(){
+      if(okAll){ writeCache({at:Date.now(), data:data}); }
+      $('checked').textContent = fmtTime(new Date()) + ' 확인' + (okAll ? '' : ' (일부 실패)');
+    });
+  }
+
+  $('reload').addEventListener('click', function(){ load(true); });
+  load(false);
+})();
+</script>
+</body>
+</html>
