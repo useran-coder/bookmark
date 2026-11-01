@@ -9,7 +9,7 @@
   :root{
     --bg:#000; --card:#111214; --card-h:#1a1c20; --line:#2a2d33;
     --text:#f2f3f5; --sub:#9aa0a8; --dim:#6b7078;
-    --sales:#3b82f6; --purchase:#10b981; --new:#f59e0b;
+    --sales:#3b82f6; --purchase:#10b981; --cost:#a78bfa; --new:#f59e0b;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--text)}
@@ -74,9 +74,11 @@
     { key:'sales',    name:'매출 분석 도구', icon:'📈', color:'var(--sales)',
       url:'https://useran-coder.github.io/sales/',    repo:'sales' },
     { key:'purchase', name:'매입 분석 도구', icon:'📦', color:'var(--purchase)',
-      url:'https://useran-coder.github.io/purchase/', repo:'purchase' }
+      url:'https://useran-coder.github.io/purchase/', repo:'purchase' },
+    { key:'cost',     name:'가공비 견적기',  icon:'🧮', color:'var(--cost)',
+      url:'https://useran-coder.github.io/cost/',     repo:'cost' }
   ];
-  var CACHE_KEY = 'dbfHomeUpd_v1';
+  var CACHE_KEY = 'dbfHomeUpd_v2';
   var CACHE_MS = 10 * 60 * 1000;   // 10분 안에는 다시 묻지 않음 (GitHub 무료 조회 한도 보호)
   var WD = ['일','월','화','수','목','금','토'];
 
