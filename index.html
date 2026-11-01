@@ -51,9 +51,79 @@
          align-items:baseline;justify-content:flex-start;gap:4px 10px;padding:10px 18px}
     .upd .dt,.upd .meta{margin-top:0}
   }
+
+  /* 삼선 메뉴 */
+  .hb{position:fixed;top:14px;left:14px;z-index:30;width:42px;height:42px;border-radius:10px;
+      background:#0d0e10;border:1px solid var(--line);color:var(--text);cursor:pointer;
+      display:flex;align-items:center;justify-content:center}
+  .hb:hover{background:var(--card-h)}
+  .hb svg{width:20px;height:20px}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;display:none}
+  .scrim.on{display:block}
+  .drawer{position:fixed;top:0;left:0;bottom:0;width:260px;max-width:82vw;z-index:50;background:#0d0e10;
+          border-right:1px solid var(--line);transform:translateX(-102%);transition:transform .2s;
+          padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+  .drawer.on{transform:none}
+  .drawer .dh{display:flex;align-items:center;justify-content:space-between;padding:0 6px 14px;
+              border-bottom:1px solid var(--line);margin-bottom:8px;font-weight:700}
+  .drawer .x{background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer}
+  .mi{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:9px;border:none;
+      background:none;color:var(--text);font:inherit;font-size:15px;cursor:pointer;text-align:left;text-decoration:none}
+  .mi:hover{background:var(--card-h)}
+  .msec{font-size:11px;color:var(--dim);padding:14px 12px 4px;letter-spacing:.05em}
+  /* Member 창 */
+  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;
+         padding:60px 16px 16px;background:rgba(0,0,0,.6)}
+  .modal.on{display:flex}
+  .mbox{width:100%;max-width:520px;max-height:calc(100vh - 80px);display:flex;flex-direction:column;
+        background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .mhead{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .mhead h2{margin:0;font-size:18px}
+  .mhead .cnt{font-size:13px;color:var(--sub)}
+  .mhead .x{margin-left:auto;background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer}
+  .mbody{padding:14px 18px;overflow:auto}
+  .mbody table{width:100%;border-collapse:collapse;font-size:14px}
+  .mbody th{text-align:left;font-size:12px;color:var(--sub);font-weight:600;padding:8px;border-bottom:1px solid var(--line);
+            position:sticky;top:-14px;background:var(--card)}
+  .mbody td{padding:9px 8px;border-bottom:1px solid #1f2227}
+  .mbody td.no{color:var(--dim);width:36px;font-variant-numeric:tabular-nums}
+  .mbody td.id{font-weight:700;font-family:ui-monospace,Consolas,monospace}
+  .tag{display:inline-block;font-size:11px;border-radius:5px;padding:1px 6px;margin-left:6px;border:1px solid var(--line);color:var(--sub)}
+  .tag.adm{color:#fbbf24;border-color:#78591a}
+  .tag.off{color:#f87171;border-color:#7f2d2d}
+  .tag.pend{color:#60a5fa;border-color:#1e3a8a}
+  .note{font-size:13px;color:var(--sub);line-height:1.6}
+  .lf{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .lf input{background:#000;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:10px 12px;font:inherit}
+  .lf button{background:#2563eb;border:none;color:#fff;border-radius:8px;padding:10px;font:inherit;font-weight:700;cursor:pointer}
+  .lf button:disabled{opacity:.6}
+  .mfoot{display:flex;gap:8px;justify-content:flex-end;padding:10px 18px;border-top:1px solid var(--line)}
+  .mfoot button{background:none;border:1px solid var(--line);color:var(--sub);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+  .mfoot button:hover{color:var(--text)}
 </style>
 </head>
 <body>
+<button class="hb" id="hb" type="button" aria-label="메뉴 열기">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+<div class="scrim" id="scrim"></div>
+<nav class="drawer" id="drawer" aria-label="메뉴">
+  <div class="dh"><span>메뉴</span><button class="x" id="drawerX" type="button" aria-label="닫기">×</button></div>
+  <button class="mi" id="miMember" type="button">👥 Member</button>
+  <div class="msec">바로가기</div>
+  <div id="drawerLinks"></div>
+</nav>
+<div class="modal" id="memModal" role="dialog" aria-modal="true" aria-labelledby="memTitle">
+  <div class="mbox">
+    <div class="mhead"><h2 id="memTitle">Member</h2><span class="cnt" id="memCnt"></span>
+      <button class="x" id="memX" type="button" aria-label="닫기">×</button></div>
+    <div class="mbody" id="memBody"></div>
+    <div class="mfoot" id="memFoot" style="display:none">
+      <button type="button" id="memReload">새로 불러오기</button>
+      <button type="button" id="memLogout">이 화면 로그아웃</button>
+    </div>
+  </div>
+</div>
 <header>
   <p class="co">(주)동방파스텍</p>
   <h1>업무분석도구</h1>
@@ -216,6 +286,157 @@
 
   $('reload').addEventListener('click', function(){ load(true); });
   load(false);
+})();
+</script>
+<script>
+/* ── 삼선 메뉴 + Member(등록된 사람 목록) ──
+   계정은 매출분석도구 로그인 서버와 같습니다. 같은 github.io 주소라서
+   매출분석도구에 로그인해 둔 PC는 그 로그인을 그대로 씁니다(읽기만, 바꾸지 않음). */
+(function(){
+  'use strict';
+  var AU_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbxSlND4ZKOpxISNQMRdV2d-LA5YxXS1BDe0k2TXKq6g7Tfm6PZ1Rse3mp0Nm4ndZXZdiQ/exec';
+  var AU_KEY = 'dbang2026!';
+  var SS_KEY = 'dbfHomeAu_v1';
+  function $(id){ return document.getElementById(id); }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function auUrl(){
+    try{ var v=String(localStorage.getItem('au_url_override_v745')||'').trim();
+      if(/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(v) && v.indexOf('AKfycbyEjIY0')<0) return v; }catch(e){}
+    return AU_URL_DEFAULT;
+  }
+
+  // 메뉴 열고 닫기
+  function openDrawer(){ $('drawer').classList.add('on'); $('scrim').classList.add('on'); }
+  function closeDrawer(){ $('drawer').classList.remove('on'); $('scrim').classList.remove('on'); }
+  $('hb').addEventListener('click', openDrawer);
+  $('drawerX').addEventListener('click', closeDrawer);
+  $('scrim').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape'){ if($('memModal').classList.contains('on')) closeMem(); else closeDrawer(); }
+  });
+  // 바로가기 링크(본문 버튼과 같은 목록)
+  document.querySelectorAll('a.btn').forEach(function(a){
+    var l=document.createElement('a'); l.className='mi'; l.href=a.href; l.target='_blank'; l.rel='noopener';
+    l.textContent=(a.querySelector('.ico')||{}).textContent+' '+(a.querySelector('.name')||{}).textContent;
+    $('drawerLinks').appendChild(l);
+  });
+
+  // 매출분석도구가 이 PC에 저장해 둔 로그인 읽기 (DB가 없으면 만들지 않음)
+  function readSalesLogin(){
+    return new Promise(function(res){
+      try{
+        var created=false, rq=indexedDB.open('dbpastec_sales');
+        rq.onupgradeneeded=function(){ created=true; try{ rq.transaction.abort(); }catch(e){} };
+        rq.onerror=function(){ res(null); };
+        rq.onsuccess=function(){
+          var db=rq.result;
+          if(created || !db.objectStoreNames.contains('kv')){ db.close(); return res(null); }
+          try{
+            var g=db.transaction('kv','readonly').objectStore('kv').get('auth_v1');
+            g.onsuccess=function(){ db.close(); res(g.result||null); };
+            g.onerror=function(){ db.close(); res(null); };
+          }catch(e){ db.close(); res(null); }
+        };
+      }catch(e){ res(null); }
+    });
+  }
+  function valid(a){ return !!(a && a.token && a.exp && Date.now() < a.exp); }
+  function getOwn(){ try{ return JSON.parse(sessionStorage.getItem(SS_KEY)||'null'); }catch(e){ return null; } }
+  function setOwn(v){ try{ v?sessionStorage.setItem(SS_KEY,JSON.stringify(v)):sessionStorage.removeItem(SS_KEY); }catch(e){} }
+
+  function call(payload){
+    payload.key = AU_KEY;
+    var ctl = window.AbortController ? new AbortController() : null;
+    var t = ctl ? setTimeout(function(){ ctl.abort(); }, 25000) : null;
+    return fetch(auUrl(), {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(payload), signal: ctl?ctl.signal:undefined})
+      .then(function(r){ return r.text(); })
+      .then(function(tx){
+        if(t) clearTimeout(t);
+        var d; try{ d=JSON.parse(tx); }catch(e){ throw new Error('서버 응답을 읽지 못했습니다.'); }
+        if(d && d.error) throw new Error(String(d.error));
+        return d;
+      }, function(e){
+        if(t) clearTimeout(t);
+        throw new Error(e && e.name==='AbortError' ? '서버가 25초 안에 응답하지 않았습니다.' : '서버에 연결하지 못했습니다.');
+      });
+  }
+
+  var ROLE = {admin:'관리자', uploader:'업로더', user:'일반'};
+  var cur = null;   // 지금 쓰는 로그인 {token,id,name,role,exp,src}
+
+  function body(h){ $('memBody').innerHTML = h; }
+  function showLogin(msg){
+    $('memCnt').textContent=''; $('memFoot').style.display='none';
+    body('<div class="note">'+(msg?esc(msg)+'<br>':'')+
+      '매출분석도구와 같은 아이디로 로그인하세요. 관리자 계정만 목록을 볼 수 있습니다.</div>'+
+      '<form class="lf" id="memLogin" autocomplete="on">'+
+      '<input id="mlId" name="username" placeholder="아이디" autocomplete="username" required>'+
+      '<input id="mlPw" name="password" type="password" placeholder="비밀번호" autocomplete="current-password" required>'+
+      '<button id="mlBtn" type="submit">로그인</button><div class="note" id="mlMsg" style="color:#f87171"></div></form>');
+    $('memLogin').addEventListener('submit', function(e){
+      e.preventDefault();
+      var id=$('mlId').value.trim(), pw=$('mlPw').value;
+      if(!id||!pw) return;
+      $('mlBtn').disabled=true; $('mlBtn').textContent='확인 중…'; $('mlMsg').textContent='';
+      call({action:'auLogin', id:id, pw:pw}).then(function(d){
+        if(!d || !d.token || !d.user) throw new Error('로그인하지 못했습니다.');
+        cur = {token:d.token, id:d.user.id, name:d.user.name, role:d.user.role, exp:d.exp, src:'own'};
+        setOwn(cur); loadList();
+      }).catch(function(err){
+        $('mlMsg').textContent = err.message; $('mlBtn').disabled=false; $('mlBtn').textContent='로그인';
+      });
+    });
+    setTimeout(function(){ var i=$('mlId'); if(i) i.focus(); }, 50);
+  }
+
+  function loadList(){
+    if(cur && cur.role && cur.role!=='admin'){
+      return showLogin((cur.name||cur.id)+'님은 '+(ROLE[cur.role]||cur.role)+' 권한이라 목록을 볼 수 없습니다.');
+    }
+    $('memFoot').style.display='';
+    $('memLogout').style.display = (cur && cur.src==='own') ? '' : 'none';
+    body('<div class="note">불러오는 중…</div>'); $('memCnt').textContent='';
+    call({action:'auList', token:cur.token, fresh:Date.now()}).then(function(d){
+      var all = (d && d.users) || [];
+      all.sort(function(a,b){ return (b.pending?1:0)-(a.pending?1:0) || String(a.name||a.id).localeCompare(String(b.name||b.id),'ko'); });
+      $('memCnt').textContent = all.length+'명';
+      if(!all.length) return body('<div class="note">등록된 사람이 없습니다.</div>');
+      body('<table><thead><tr><th>#</th><th>아이디</th><th>이름</th></tr></thead><tbody>'+
+        all.map(function(u,i){
+          var tags='';
+          if(u.pending) tags+='<span class="tag pend">승인 대기</span>';
+          else if(u.active===false) tags+='<span class="tag off">사용중지</span>';
+          if(u.role==='admin') tags+='<span class="tag adm">관리자</span>';
+          else if(u.role==='uploader') tags+='<span class="tag">업로더</span>';
+          return '<tr><td class="no">'+(i+1)+'</td><td class="id">'+esc(u.id)+'</td><td>'+esc(u.name||'')+tags+'</td></tr>';
+        }).join('')+'</tbody></table>'+
+        '<div class="note" style="margin-top:10px">계정 추가·삭제·권한 변경은 매출분석도구 관리자 메뉴에서 합니다.</div>');
+    }).catch(function(err){
+      if(/토큰|로그인|만료|권한|token|auth/i.test(err.message)){
+        if(cur && cur.src==='own') setOwn(null);
+        cur=null; return showLogin(err.message);
+      }
+      body('<div class="note" style="color:#f87171">'+esc(err.message)+'</div>');
+    });
+  }
+
+  function openMem(){
+    closeDrawer(); $('memModal').classList.add('on');
+    body('<div class="note">로그인 확인 중…</div>');
+    var own=getOwn();
+    if(valid(own)){ cur=own; return loadList(); }
+    readSalesLogin().then(function(a){
+      if(valid(a)){ cur={token:a.token,id:a.id,name:a.name,role:a.role,exp:a.exp,src:'sales'}; loadList(); }
+      else { cur=null; showLogin(''); }
+    });
+  }
+  function closeMem(){ $('memModal').classList.remove('on'); }
+  $('miMember').addEventListener('click', openMem);
+  $('memX').addEventListener('click', closeMem);
+  $('memModal').addEventListener('click', function(e){ if(e.target===$('memModal')) closeMem(); });
+  $('memReload').addEventListener('click', function(){ if(cur) loadList(); else openMem(); });
+  $('memLogout').addEventListener('click', function(){ setOwn(null); cur=null; showLogin(''); });
 })();
 </script>
 </body>
