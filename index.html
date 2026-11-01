@@ -71,17 +71,36 @@
       background:none;color:var(--text);font:inherit;font-size:15px;cursor:pointer;text-align:left;text-decoration:none}
   .mi:hover{background:var(--card-h)}
   .msec{font-size:11px;color:var(--dim);padding:14px 12px 4px;letter-spacing:.05em}
-  /* Member 창 */
-  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;
-         padding:60px 16px 16px;background:rgba(0,0,0,.6)}
-  .modal.on{display:flex}
-  .mbox{width:100%;max-width:520px;max-height:calc(100vh - 80px);display:flex;flex-direction:column;
-        background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  /* Member 창 — 오른쪽에서 밀려 나옴 */
+  .modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s}
+  .modal.on{opacity:1;pointer-events:auto}
+  .mbox{position:absolute;top:0;right:0;bottom:0;width:520px;max-width:100vw;display:flex;flex-direction:column;
+        background:#0d0e10;border-left:1px solid var(--line);transform:translateX(102%);transition:transform .22s ease}
+  .modal.on .mbox{transform:none}
+  /* 우측 상단 로그인 상태 */
+  .who{position:fixed;top:14px;right:14px;z-index:30;display:flex;align-items:center;gap:8px;height:42px;padding:0 12px 0 6px;
+       border-radius:21px;background:#0d0e10;border:1px solid var(--line);color:var(--text);cursor:pointer;font:inherit;font-size:14px}
+  .who:hover{background:var(--card-h)}
+  .who .av{width:30px;height:30px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;
+           font-size:13px;font-weight:700;color:#e5e7eb}
+  .who.in .av{background:#2563eb;color:#fff}
+  .who .dot{width:8px;height:8px;border-radius:50%;background:#6b7078}
+  .who.in .dot{background:#22c55e}
+  .who .rl{font-size:11px;color:var(--sub)}
+  .acct{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px}
+  .acct .av{width:40px;height:40px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .acct .nm{font-weight:700}
+  .acct .sm{font-size:12px;color:var(--sub);margin-top:2px}
+  .acct button{margin-left:auto;background:none;border:1px solid var(--line);color:var(--sub);border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;cursor:pointer}
+  .acct button:hover{color:var(--text)}
+  .mbody td.ll{color:var(--sub);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .mbody td.ll small{display:block;color:var(--dim);font-size:11px}
+  @media (max-width:600px){ .who .nmt,.who .rl{display:none} .who{padding:0 6px} }
   .mhead{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
   .mhead h2{margin:0;font-size:18px}
   .mhead .cnt{font-size:13px;color:var(--sub)}
   .mhead .x{margin-left:auto;background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer}
-  .mbody{padding:14px 18px;overflow:auto}
+  .mbody{padding:14px 18px;overflow:auto;flex:1}
   .mbody table{width:100%;border-collapse:collapse;font-size:14px}
   .mbody th{text-align:left;font-size:12px;color:var(--sub);font-weight:600;padding:8px;border-bottom:1px solid var(--line);
             position:sticky;top:-14px;background:var(--card)}
@@ -106,6 +125,7 @@
 <button class="hb" id="hb" type="button" aria-label="메뉴 열기">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
 </button>
+<button class="who" id="who" type="button" aria-label="로그인 상태"><span class="av" id="whoAv">?</span><span class="nmt" id="whoName">확인 중</span><span class="rl" id="whoRole"></span><span class="dot"></span></button>
 <div class="scrim" id="scrim"></div>
 <nav class="drawer" id="drawer" aria-label="메뉴">
   <div class="dh"><span>메뉴</span><button class="x" id="drawerX" type="button" aria-label="닫기">×</button></div>
@@ -120,7 +140,6 @@
     <div class="mbody" id="memBody"></div>
     <div class="mfoot" id="memFoot" style="display:none">
       <button type="button" id="memReload">새로 불러오기</button>
-      <button type="button" id="memLogout">이 화면 로그아웃</button>
     </div>
   </div>
 </div>
@@ -382,7 +401,7 @@
       call({action:'auLogin', id:id, pw:pw}).then(function(d){
         if(!d || !d.token || !d.user) throw new Error('로그인하지 못했습니다.');
         cur = {token:d.token, id:d.user.id, name:d.user.name, role:d.user.role, exp:d.exp, src:'own'};
-        setOwn(cur); loadList();
+        setOwn(cur); renderWho(); loadList();
       }).catch(function(err){
         $('mlMsg').textContent = err.message; $('mlBtn').disabled=false; $('mlBtn').textContent='로그인';
       });
@@ -395,48 +414,95 @@
       return showLogin((cur.name||cur.id)+'님은 '+(ROLE[cur.role]||cur.role)+' 권한이라 목록을 볼 수 없습니다.');
     }
     $('memFoot').style.display='';
-    $('memLogout').style.display = (cur && cur.src==='own') ? '' : 'none';
     body('<div class="note">불러오는 중…</div>'); $('memCnt').textContent='';
     call({action:'auList', token:cur.token, fresh:Date.now()}).then(function(d){
       var all = (d && d.users) || [];
       all.sort(function(a,b){ return (b.pending?1:0)-(a.pending?1:0) || String(a.name||a.id).localeCompare(String(b.name||b.id),'ko'); });
       $('memCnt').textContent = all.length+'명';
-      if(!all.length) return body('<div class="note">등록된 사람이 없습니다.</div>');
-      body('<table><thead><tr><th>#</th><th>아이디</th><th>이름</th></tr></thead><tbody>'+
+      if(!all.length) return body(acctCard()+'<div class="note">등록된 사람이 없습니다.</div>');
+      body(acctCard()+'<table><thead><tr><th>#</th><th>아이디</th><th>이름</th><th>마지막 로그인</th></tr></thead><tbody>'+
         all.map(function(u,i){
           var tags='';
           if(u.pending) tags+='<span class="tag pend">승인 대기</span>';
           else if(u.active===false) tags+='<span class="tag off">사용중지</span>';
           if(u.role==='admin') tags+='<span class="tag adm">관리자</span>';
           else if(u.role==='uploader') tags+='<span class="tag">업로더</span>';
-          return '<tr><td class="no">'+(i+1)+'</td><td class="id">'+esc(u.id)+'</td><td>'+esc(u.name||'')+tags+'</td></tr>';
+          return '<tr><td class="no">'+(i+1)+'</td><td class="id">'+esc(u.id)+'</td><td>'+esc(u.name||'')+tags+'</td><td class="ll">'+lastLogin(u.lastLogin)+'</td></tr>';
         }).join('')+'</tbody></table>'+
         '<div class="note" style="margin-top:10px">계정 추가·삭제·권한 변경은 매출분석도구 관리자 메뉴에서 합니다.</div>');
+      bindAcct();
     }).catch(function(err){
       if(/토큰|로그인|만료|권한|token|auth/i.test(err.message)){
         if(cur && cur.src==='own') setOwn(null);
-        cur=null; return showLogin(err.message);
+        cur=null; renderWho(); return showLogin(err.message);
       }
       body('<div class="note" style="color:#f87171">'+esc(err.message)+'</div>');
     });
   }
 
+  // 지금 로그인 상태 찾기: 이 화면 로그인 → 매출분석도구 로그인 순서
+  function resolveLogin(){
+    var own=getOwn();
+    if(valid(own)) return Promise.resolve(own);
+    return readSalesLogin().then(function(a){
+      return valid(a) ? {token:a.token,id:a.id,name:a.name,role:a.role,exp:a.exp,src:'sales'} : null;
+    });
+  }
+  function initial(n){ n=String(n||'').trim(); return n ? n.charAt(0).toUpperCase() : '?'; }
+  function renderWho(){
+    var w=$('who');
+    if(cur){
+      w.classList.add('in');
+      $('whoAv').textContent=initial(cur.name||cur.id);
+      $('whoName').textContent=cur.name||cur.id;
+      $('whoRole').textContent=ROLE[cur.role]||'';
+      w.title=(cur.name||cur.id)+' ('+cur.id+') 로그인 중'+(cur.src==='sales'?' · 매출분석도구 로그인 사용':'');
+    }else{
+      w.classList.remove('in');
+      $('whoAv').textContent='?'; $('whoName').textContent='로그인'; $('whoRole').textContent=''; w.title='로그인하지 않음';
+    }
+  }
+  function refreshWho(){ return resolveLogin().then(function(c){ cur=c; renderWho(); return c; }); }
+  function acctCard(){
+    if(!cur) return '';
+    var left = Math.max(0, Math.round((cur.exp-Date.now())/60000));
+    var leftTxt = left>=60 ? Math.floor(left/60)+'시간 '+(left%60)+'분' : left+'분';
+    return '<div class="acct"><span class="av">'+esc(initial(cur.name||cur.id))+'</span><div>'+
+      '<div class="nm">'+esc(cur.name||'')+' <span class="tag adm">'+esc(ROLE[cur.role]||cur.role||'')+'</span></div>'+
+      '<div class="sm">'+esc(cur.id)+' · 로그인 남은 시간 '+leftTxt+(cur.src==='sales'?' · 매출분석도구 로그인 사용':'')+'</div></div>'+
+      (cur.src==='own' ? '<button type="button" id="acctOut">로그아웃</button>' : '')+'</div>';
+  }
+  function bindAcct(){
+    var b=$('acctOut'); if(!b) return;
+    b.addEventListener('click', function(){ setOwn(null); cur=null; renderWho(); showLogin(''); });
+  }
+  // 마지막 로그인: 한국 시간 + 며칠 전
+  function lastLogin(v){
+    if(!v) return '<span style="color:var(--dim)">기록 없음</span>';
+    var str=String(v), d=new Date(str), out;
+    if(isNaN(d)) return esc(str.slice(0,16));
+    if(/[zZ]|[+-]\d\d:?\d\d$/.test(str) || typeof v==='number'){
+      var k=new Date(d.getTime()+9*3600e3);
+      out=k.getUTCFullYear()+'-'+('0'+(k.getUTCMonth()+1)).slice(-2)+'-'+('0'+k.getUTCDate()).slice(-2)+' '+('0'+k.getUTCHours()).slice(-2)+':'+('0'+k.getUTCMinutes()).slice(-2);
+    }else out=str.slice(0,16).replace('T',' ');
+    var days=Math.floor((Date.now()-d.getTime())/86400000);
+    var rel = days<=0 ? '오늘' : days===1 ? '어제' : days+'일 전';
+    return esc(out)+'<small>'+rel+'</small>';
+  }
+
   function openMem(){
     closeDrawer(); $('memModal').classList.add('on');
     body('<div class="note">로그인 확인 중…</div>');
-    var own=getOwn();
-    if(valid(own)){ cur=own; return loadList(); }
-    readSalesLogin().then(function(a){
-      if(valid(a)){ cur={token:a.token,id:a.id,name:a.name,role:a.role,exp:a.exp,src:'sales'}; loadList(); }
-      else { cur=null; showLogin(''); }
-    });
+    refreshWho().then(function(c){ if(c) loadList(); else showLogin(''); });
   }
   function closeMem(){ $('memModal').classList.remove('on'); }
   $('miMember').addEventListener('click', openMem);
   $('memX').addEventListener('click', closeMem);
   $('memModal').addEventListener('click', function(e){ if(e.target===$('memModal')) closeMem(); });
   $('memReload').addEventListener('click', function(){ if(cur) loadList(); else openMem(); });
-  $('memLogout').addEventListener('click', function(){ setOwn(null); cur=null; showLogin(''); });
+  $('who').addEventListener('click', openMem);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) refreshWho(); });
+  refreshWho();
 })();
 </script>
 </body>
