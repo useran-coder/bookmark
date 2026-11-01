@@ -9,7 +9,7 @@
   :root{
     --bg:#000; --card:#111214; --card-h:#1a1c20; --line:#2a2d33;
     --text:#f2f3f5; --sub:#9aa0a8; --dim:#6b7078;
-    --sales:#3b82f6; --purchase:#10b981; --cost:#a78bfa; --new:#f59e0b;
+    --sales:#3b82f6; --purchase:#10b981; --cost:#a78bfa; --team:#f472b6; --new:#f59e0b;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--text)}
@@ -62,7 +62,7 @@
 <main id="list"></main>
 
 <footer>
-  업데이트 일자는 GitHub 최신 배포 기록 기준 · <span id="checked"></span>
+  업데이트 일자는 GitHub 배포 시각 기준 · <span id="checked"></span>
   <button type="button" id="reload">새로 확인</button>
 </footer>
 
@@ -76,9 +76,11 @@
     { key:'purchase', name:'매입 분석 도구', icon:'📦', color:'var(--purchase)',
       url:'https://useran-coder.github.io/purchase/', repo:'purchase' },
     { key:'cost',     name:'가공비 견적기',  icon:'🧮', color:'var(--cost)',
-      url:'https://useran-coder.github.io/cost/',     repo:'cost' }
+      url:'https://useran-coder.github.io/cost/',     repo:'cost' },
+    { key:'salesteam', name:'영업팀 업무분석', icon:'👥', color:'var(--team)',
+      url:'https://useran-coder.github.io/salesteam/', repo:'salesteam' }
   ];
-  var CACHE_KEY = 'dbfHomeUpd_v2';
+  var CACHE_KEY = 'dbfHomeUpd_v3';
   var CACHE_MS = 10 * 60 * 1000;   // 10분 안에는 다시 묻지 않음 (GitHub 무료 조회 한도 보호)
   var WD = ['일','월','화','수','목','금','토'];
 
@@ -130,27 +132,60 @@
     meta.textContent = fmtTime(d) + ' · ' + ago(n) + (info.ver ? ' · ' + info.ver : '');
   }
 
-  // 1) index.html 최신 커밋 날짜  2) 파일 앞부분에서 실제 버전 번호
-  function fetchTool(t){
+  // 파일 앞부분(약 40KB)만 읽고 끊기 → 버전 번호 찾기
+  function headText(resp){
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    if(!resp.body || !resp.body.getReader) return resp.text().then(function(s){ return s.slice(0,40000); });
+    var rd = resp.body.getReader(), dec = new TextDecoder('utf-8'), out = '';
+    function pump(){
+      return rd.read().then(function(r){
+        if(r.value) out += dec.decode(r.value, {stream:true});
+        if(r.done || out.length >= 40000){ try{ rd.cancel(); }catch(e){} return out; }
+        return pump();
+      });
+    }
+    return pump();
+  }
+  function findVer(s){
+    var m = /APP_BUILD\s*=\s*['"](v\d+)['"]/.exec(s) || /<title>[^<]*?(v\d+)\s*<\/title>/.exec(s);
+    return m ? m[1] : '';
+  }
+
+  // ① 기본: 같은 github.io 주소의 배포 파일 머리(Last-Modified = 배포 시각) — 조회 한도 없음
+  function viaPages(t){
+    return fetch(t.url, {headers:{Range:'bytes=0-40000'}, cache:'no-cache'}).then(function(r){
+      var lm = r.headers.get('Last-Modified');
+      return headText(r).then(function(s){
+        if(!lm) throw new Error('no Last-Modified');
+        return { date:new Date(lm).toISOString(), ver:findVer(s) };
+      });
+    });
+  }
+  // ② 예비: GitHub API(1시간 60회 한도) + raw 파일 머리
+  function viaApi(t){
     var api = 'https://api.github.com/repos/'+OWNER+'/'+t.repo+'/commits?path=index.html&per_page=1';
     var raw = 'https://raw.githubusercontent.com/'+OWNER+'/'+t.repo+'/main/index.html';
     var commit = fetch(api, {headers:{Accept:'application/vnd.github+json'}})
       .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
       .then(function(a){
         var c = a && a[0] && a[0].commit; if(!c) throw new Error('no commit');
-        var m = /v\d{2,5}/.exec(c.message||'');
+        var m = /(?:st-)?v\d{2,5}/.exec(c.message||'');
         return { date:(c.committer||c.author).date, verMsg: m ? m[0] : '' };
       });
     var ver = fetch(raw, {headers:{Range:'bytes=0-40000'}, cache:'no-store'})
-      .then(function(r){ return r.ok ? r.text() : ''; })
-      .then(function(s){
-        var m = /APP_BUILD\s*=\s*['"](v\d+)['"]/.exec(s) || /<title>[^<]*?(v\d+)\s*<\/title>/.exec(s);
-        return m ? m[1] : '';
-      })
-      .catch(function(){ return ''; });
+      .then(headText).then(findVer).catch(function(){ return ''; });
     return Promise.all([commit, ver]).then(function(r){
       return { date:r[0].date, ver: r[1] || r[0].verMsg };
     });
+  }
+  var ON_PAGES = /\.github\.io$/i.test(location.hostname);
+  function fetchTool(t){
+    if(!ON_PAGES) return viaApi(t);
+    return viaPages(t).then(function(info){
+      if(info.ver) return info;
+      // 파일 안에 버전이 없는 도구(영업팀 업무분석)는 커밋 메시지에서만 버전 보충
+      return viaApi(t).then(function(a){ return { date:info.date, ver:a.ver }; }, function(){ return info; });
+    }, function(){ return viaApi(t); });
   }
 
   function load(force){
