@@ -78,6 +78,20 @@
   .mi{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:9px;border:none;
       background:none;color:var(--text);font:inherit;font-size:15px;font-weight:400;cursor:pointer;text-align:left;text-decoration:none}
   .mi:hover{background:var(--card-h)}
+  .gh{padding:4px 12px 8px;font-size:12.5px;color:var(--sub)}
+  .gh-t{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .gh-t b{font-size:16px;color:var(--text)}
+  .gh-bar{height:12px;border-radius:6px;background:#1c1e22;border:1px solid var(--line);overflow:hidden}
+  .gh-bar i{display:block;height:100%;width:0;background:#22c55e;border-radius:6px;transition:width .4s}
+  .gh-list{margin-top:9px;display:flex;flex-direction:column;gap:5px}
+  .gh-r{display:grid;grid-template-columns:72px 1fr 58px;align-items:center;gap:6px;font-size:11.5px}
+  .gh-r .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+  .gh-r .b{height:6px;border-radius:3px;background:#1c1e22;overflow:hidden}
+  .gh-r .b i{display:block;height:100%;background:#3b82f6}
+  .gh-r .v{text-align:right;font-variant-numeric:tabular-nums}
+  .gh-ft{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--dim)}
+  .gh-ft button{background:none;border:1px solid var(--line);color:var(--sub);border-radius:6px;padding:2px 8px;font:inherit;cursor:pointer}
+  .gh-ft button:hover{color:var(--text)}
   .msec{font-size:11px;color:var(--dim);padding:4px 12px 4px;letter-spacing:.05em}
   /* Member 창 — 오른쪽에서 밀려 나옴 */
   .modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s}
@@ -409,6 +423,10 @@
   <div class="dh"><span>메뉴</span><button class="x" id="drawerX" type="button" aria-label="닫기">×</button></div>
   <div class="msec">바로가기</div>
   <div id="drawerLinks"></div>
+  <div class="msec" style="margin-top:14px">GitHub 저장 용량</div>
+  <div class="gh" id="ghUse"><div class="gh-t"><b id="ghPct">확인 중…</b><span id="ghTxt"></span></div>
+    <div class="gh-bar"><i id="ghFill"></i></div><div class="gh-list" id="ghList"></div>
+    <div class="gh-ft"><span id="ghAt"></span><button type="button" id="ghRe">새로 확인</button></div></div>
 </nav>
 <div class="modal" id="memModal" role="dialog" aria-modal="true" aria-labelledby="memTitle">
   <div class="mbox">
@@ -734,6 +752,41 @@
     l.textContent=(a.querySelector('.ico')||{}).textContent+' '+(a.querySelector('.name')||{}).textContent;
     $('drawerLinks').appendChild(l);
   });
+
+  // GitHub 저장 용량: 공개 저장소 목록(size=KB)을 1시간 저장해 두고 사용
+  // 100% 기준 1GB = GitHub 권장 저장소 크기이자 GitHub Pages 사이트 최대 크기
+  var GH_LIMIT_KB = 1024*1024, GH_KEY = 'dbfHomeGh_v1', GH_MS = 60*60*1000;
+  function ghSize(kb){ return kb>=1024*1024 ? (kb/1048576).toFixed(2)+' GB' : kb>=1024 ? (kb/1024).toFixed(1)+' MB' : kb+' KB'; }
+  function ghPaint(c, err){
+    if(!c || !c.repos){ $('ghPct').textContent = err ? '확인 못 함' : '확인 중…'; $('ghTxt').textContent = err ? '잠시 후 «새로 확인»' : ''; return; }
+    var tot = c.repos.reduce(function(a,r){ return a + r.kb; }, 0), pct = tot/GH_LIMIT_KB*100;
+    $('ghPct').textContent = (pct<1 ? pct.toFixed(1) : Math.round(pct)) + '%';
+    $('ghTxt').textContent = ghSize(tot) + ' / 1 GB';
+    var f = $('ghFill'); f.style.width = Math.min(100, Math.max(pct, 0.8)) + '%';
+    f.style.background = pct>=90 ? '#ef4444' : pct>=70 ? '#f59e0b' : '#22c55e';
+    $('ghList').innerHTML = c.repos.slice().sort(function(a,b){ return b.kb-a.kb; }).map(function(r){
+      var w = tot ? r.kb/tot*100 : 0;
+      return '<div class="gh-r" title="'+esc(r.name)+' '+ghSize(r.kb)+' (전체 사용량의 '+w.toFixed(1)+'%)"><span class="nm">'+esc(r.name)+'</span><span class="b"><i style="width:'+Math.max(w, r.kb?1.5:0).toFixed(1)+'%"></i></span><span class="v">'+ghSize(r.kb)+'</span></div>';
+    }).join('');
+    var d = new Date(c.at);
+    $('ghAt').textContent = (d.getMonth()+1)+'/'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+' 확인 · 저장소 '+c.repos.length+'개' + (err ? ' (지난 확인값)' : '');
+  }
+  function ghLoad(force){
+    var c = null; try{ c = JSON.parse(localStorage.getItem(GH_KEY)||'null'); }catch(e){}
+    if(c && !force && Date.now()-c.at < GH_MS){ ghPaint(c); return; }
+    ghPaint(c);
+    fetch('https://api.github.com/users/useran-coder/repos?per_page=100&type=owner', {headers:{Accept:'application/vnd.github+json'}, cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(a){
+        if(!Array.isArray(a)) throw new Error('bad');
+        var v = {at:Date.now(), repos:a.map(function(r){ return {name:r.name, kb:+r.size||0}; })};
+        try{ localStorage.setItem(GH_KEY, JSON.stringify(v)); }catch(e){}
+        ghPaint(v);
+      })
+      .catch(function(){ ghPaint(c, true); });
+  }
+  $('ghRe').addEventListener('click', function(){ ghLoad(true); });
+  $('hb').addEventListener('click', function(){ ghLoad(false); });
 
   // 매출분석도구가 이 PC에 저장해 둔 로그인 읽기 (DB가 없으면 만들지 않음)
   function readSalesLogin(){
