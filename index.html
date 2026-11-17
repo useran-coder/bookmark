@@ -1818,6 +1818,44 @@
   function bomIsRaw(k){ return k==='원자재'||k==='부자재'||k==='스크랩'; }
   var BOM_KC={'원자재':'#fbbf24','부자재':'#93c5fd','스크랩':'#9ca3af','반제품':'#c4b5fd','제품':'#6ee7b7'};
   function bomKind(k){ var c=BOM_KC[k]||'#9aa0a8'; return '<span class="bm-k" style="color:'+c+';border-color:'+c+'55">'+esc(k||'-')+'</span>'; }
+  /* 검색어 숫자는 «숫자 단위»로 맞춤: 61 이 1.6x161·MCEGIC16136 안의 61 에 걸리지 않게 */
+  function numTerm(t){ return /^\d+(\.\d+)?t?$/.test(t); }
+  function termHit(h, t){
+    if(!numTerm(t)) return h.indexOf(t)>=0;
+    var n=t.replace(/t$/,''), re=new RegExp('(^|[^0-9.])'+n.replace(/\./g,'\\.')+'(?![0-9]|\\.[0-9])');
+    return re.test(h);
+  }
+  /* 원자재 규격 검색어: «1.6 61», «EGI 1.6x61», «1.6*61», «1.6t 61», «STS430 0.8» → {grade,t,w,rest} */
+  var RAW_GR=/^(sts\d{3}[a-z]*|sus\d{3}[a-z]*|egi(-c|-s)?|hgi|gi|ga|po|cr|hr|sgcc|secc|spcc|sphc|sglcc|al|sts)$/;
+  function rawQ(ts){
+    var g='', nums=[], rest=[];
+    ts.forEach(function(t){
+      var m=/^(\d+(?:\.\d+)?)t?[x*×](\d+(?:\.\d+)?)$/.exec(t);
+      if(m){ nums.push(+m[1], +m[2]); return; }
+      if(/^\d+(\.\d+)?t?$/.test(t)){ nums.push(parseFloat(t)); return; }
+      if(!g && RAW_GR.test(t)){ g=t; return; }
+      rest.push(t);
+    });
+    if(!nums.length || nums.length>2) return null;
+    var t=nums[0], w=nums.length>1?nums[1]:null;
+    if(!(t>0 && t<=12)) return null;          // 두께가 아니면 원자재 규격 검색이 아님
+    if(w!=null && !(w>=5 && w<=2600)) return null;
+    if(w==null && !g && !/\./.test(String(t))) return null;   // «134» 같은 숫자 하나는 품번·규격 검색으로
+    return {grade:g.toUpperCase(), t:t, w:w, rest:rest};
+  }
+  function rawSpecOf(code, inf){
+    var P=window.PLOG; if(P&&P.parseRaw){ var r=P.parseRaw(inf.name, inf.spec, code); if(r) return r; }
+    var m=/(\d+(?:\.\d+)?)\s*t?\s*[x*×]\s*(\d+(?:\.\d+)?)/i.exec(String(inf.spec||'')+' '+String(inf.name||''));
+    return m?{grade:String(inf.name||'').toUpperCase().replace(/\s+/g,''), t:+m[1], w:+m[2]}:null;
+  }
+  function rawQHit(RQ, sp, nameForGrade){
+    if(!sp || Math.abs(sp.t-RQ.t)>1e-9) return false;
+    if(RQ.w!=null && Math.abs(sp.w-RQ.w)>1e-9) return false;
+    if(RQ.grade){ var P=window.PLOG, g=sp.grade||nameForGrade||''; if(!g) return false;
+      if(P&&P.gradeHit){ if(!P.gradeHit(RQ.grade, g)) return false; } else if(String(g).toUpperCase().indexOf(RQ.grade)<0) return false; }
+    return true;
+  }
+  var PLWAIT='', PLCUR=null;
   function runBom(q, cur){
     show(head('제품/원자재 검색 검색 중…')+'<div class="snote">제품별 제조원가 프로그램에서 BOM 을 읽고 있습니다.</div>');
     var hadS=!!DATA.sales;
@@ -1829,14 +1867,17 @@
       if(ALL.length){ var spl=splitTerms(ALL, ts, false);
         if(spl.c.length){ BM={q:q, prods:[], raws:[], party:spl}; return bomParty(q, spl); } }
       function hay(cd, inf){ return norm(cd)+' '+norm(inf.name)+' '+norm(inf.spec); }
-      function hit(cd, inf){ var h=hay(cd,inf); return ts.every(function(t){ return h.indexOf(t)>=0; }); }
+      function hit(cd, inf){ var h=hay(cd,inf); return ts.every(function(t){ return termHit(h,t); }); }
+      var RQ=rawQ(ts);   // «1.6 61» 같은 원자재 규격 검색이면 두께·폭을 숫자로 정확히 비교
       Object.keys(BOMD.bom).forEach(function(cd){   // 하위가 있는 품목 = 제품·반제품
         var inf=bomInfo(cd); if(!hit(cd,inf)) return; seen[cd]=1;
         prods.push({code:cd, name:inf.name, spec:inf.spec, kind:BOMD.isChild[cd]?(inf.kind||'반제품'):'제품', n:bomKids(cd).length});
       });
       var rk={};
       Object.keys(BOMD.parents).forEach(function(cd){
-        if(seen[cd]) return; var inf=bomInfo(cd); if(!bomIsRaw(inf.kind)) return; if(!hit(cd,inf)) return;
+        if(seen[cd]) return; var inf=bomInfo(cd); if(!bomIsRaw(inf.kind)) return;
+        if(RQ){ var sp=rawSpecOf(cd,inf); if(sp){ if(!rawQHit(RQ,sp,inf.name)) return; var hh=hay(cd,inf); if(!RQ.rest.every(function(t){ return termHit(hh,t); })) return; } else if(!hit(cd,inf)) return; }
+        else if(!hit(cd,inf)) return;
         var key=cd; if(rk[key]) return; rk[key]=1;
         raws.push({code:cd, name:inf.name, spec:inf.spec, kind:inf.kind, unit:inf.unit, n:bomTops(cd).length});
       });
@@ -1846,12 +1887,14 @@
         var bk={}; prods.forEach(function(p){ bk[bomNk(p.code)]=1; });
         PL.prodList().forEach(function(x){ var k=bomNk(x.code); if(!x.code||bk[k]) return; if(!hit(x.code,{name:x.name,spec:x.spec})) return; bk[k]=1;
           prods.push({code:x.code, name:x.name, spec:x.spec, kind:'제품', n:0, plogOnly:true}); });
-        praws=PL.rawList().filter(function(r){ var h=norm(r.grade+' '+r.t+'x'+r.w+' '+r.t+'*'+r.w+' '+r.t+'t'); return ts.every(function(t){ return h.indexOf(t)>=0; }); });
+        praws=PL.rawList().filter(function(r){ if(RQ) return !RQ.rest.length && rawQHit(RQ, r, r.grade); var h=norm(r.grade+' '+r.t+'x'+r.w); return ts.every(function(t){ return termHit(h,t); }); });
       }
       prods.sort(function(a,b){ return (a.kind==='제품'?0:1)-(b.kind==='제품'?0:1) || String(a.name).localeCompare(String(b.name),'ko') || String(a.spec).localeCompare(String(b.spec),'ko'); });
       raws.sort(function(a,b){ return ({'원자재':0,'부자재':1,'스크랩':2}[a.kind]||3)-({'원자재':0,'부자재':1,'스크랩':2}[b.kind]||3) || b.n-a.n || String(a.name).localeCompare(String(b.name),'ko'); });
       BM={q:q, prods:prods, raws:raws, praws:praws};
       var all=prods.length+raws.length+praws.length;
+      if(PL && !PL.ok() && !PL.noSrv){ PLWAIT=q; PLCUR=cur; } else PLWAIT='';
+      if(RQ && !prods.length && raws.length===1){ var s1=rawSpecOf(raws[0].code, raws[0]); if(s1 && praws.every(function(r){ return Math.abs(r.t-s1.t)<1e-9 && Math.abs(r.w-s1.w)<1e-9; })) return bomRaw(raws[0].code); }
       if(all===1) return prods.length ? bomProd(prods[0].code) : raws.length ? bomRaw(raws[0].code) : plogRaw(praws[0].grade, praws[0].t, praws[0].w);
       bomList();
     });
@@ -1919,10 +1962,12 @@
   function plogReady(cur){
     var P=window.PLOG; if(!P) return Promise.resolve();
     if(cur&&cur.token) PLTOK=cur.token;
-    if(!P.opt) P.init({call:function(p){ return post(p, PLTOK); }, ready:function(){ return !!PLTOK; }, gap:function(){ return $('sr').classList.contains('on')?60000:600000; }});
+    if(!P.opt){ P.init({call:function(p){ return post(p, PLTOK); }, ready:function(){ return !!PLTOK; }, gap:function(){ return $('sr').classList.contains('on')?60000:600000; }});
+      // 생산일지가 늦게 도착하면(서버 응답 지연) 보고 있던 검색 결과를 다시 그림
+      P.on(function(){ if(PLWAIT && P.ok() && BM && BM.q===PLWAIT && $('sr').classList.contains('on')){ var q=PLWAIT; PLWAIT=''; runBom(q, PLCUR); } }); }
     if(P.ok() && Date.now()-P.last<600000) return Promise.resolve();
     var s=P.sync();
-    return P.ok() ? Promise.resolve() : Promise.race([s, new Promise(function(r){ setTimeout(r,20000); })]);
+    return P.ok() ? Promise.resolve() : Promise.race([s, new Promise(function(r){ setTimeout(r,5000); })]);   // 처음엔 5초까지만 기다리고, 늦으면 도착할 때 다시 그림
   }
   function kg(v){ return won(v)+'<span class="muted" style="font-size:11px"> kg</span>'; }
   function plogRawTable(L, tag){
