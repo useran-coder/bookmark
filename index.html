@@ -13,7 +13,7 @@
   :root{
     --bg:#000; --card:#111214; --card-h:#1a1c20; --line:#2a2d33;
     --text:#f2f3f5; --sub:#9aa0a8; --dim:#6b7078;
-    --sales:#3b82f6; --purchase:#10b981; --cost:#a78bfa; --team:#f472b6; --coil:#22d3ee; --price:#fb923c; --new:#f59e0b;
+    --sales:#3b82f6; --purchase:#10b981; --cost:#a78bfa; --team:#f472b6; --coil:#22d3ee; --price:#fb923c; --material:#f97316; --new:#f59e0b;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--text)}
@@ -381,6 +381,7 @@
   #updNote .u-cat.purchase{color:#047857;background:#ecfdf5;border-color:#a7f3d0}
   #updNote .u-cat.cost{color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe}
   #updNote .u-cat.coil{color:#0e7490;background:#ecfeff;border-color:#a5f3fc}
+  #updNote .u-cat.material{color:#9a3412;background:#fff7ed;border-color:#fed7aa}
   #updNote .u-cat.price{color:#c2410c;background:#fff7ed;border-color:#fed7aa}
   #updNote .u-cat.salesteam{color:#be185d;background:#fdf2f8;border-color:#fbcfe8}
   #updNote .u-cat.home{color:#b45309;background:#fffbeb;border-color:#fde68a}
@@ -464,6 +465,9 @@
     // 단가표 만들기 = 매출 분석 도구와 같은 파일을 «단가표 전용 화면»으로 엶 → 업데이트 일자·버전은 매출 분석 도구 것
     { key:'price',    name:'단가표 만들기',  icon:'💲', color:'var(--price)',
       url:'https://useran-coder.github.io/price/',    repo:'sales', src:'https://useran-coder.github.io/sales/' },
+    // 원자재 사용현황 = 생산일지 «원자재 사용현황» 구글시트를 읽어 보여 줌(시트 수정 → 1분 안에 반영)
+    { key:'material', name:'원자재 사용현황', icon:'🧱', color:'var(--material)',
+      url:'https://useran-coder.github.io/material/', repo:'material' },
     { key:'cost',     name:'가공비 견적기',  icon:'🧮', color:'var(--cost)',
       url:'https://useran-coder.github.io/cost/',     repo:'cost' },
     { key:'coil',     name:'코일 슬리팅 조합 · 발주기', icon:'🌀', color:'var(--coil)',
@@ -538,7 +542,7 @@
     return pump();
   }
   function findVer(s){
-    var m = /APP_BUILD\s*=\s*['"](v\d+)['"]/.exec(s) || /COIL_VER\s*=\s*['"](v\d+)['"]/.exec(s) || /<title>[^<]*?(v\d+)\s*<\/title>/.exec(s);
+    var m = /APP_BUILD\s*=\s*['"](v\d+)['"]/.exec(s) || /COIL_VER\s*=\s*['"](v\d+)['"]/.exec(s) || /MAT_VER\s*=\s*['"](v\d+)['"]/.exec(s) || /<title>[^<]*?(v\d+)\s*<\/title>/.exec(s);
     return m ? m[1] : '';
   }
 
