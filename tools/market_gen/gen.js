@@ -1,0 +1,15 @@
+const fs=require('fs');const {B,decl}=require('./dep2.js');
+const IDS=['market-v366-js','v727-target-market-review','v730-permit-start-completion-analysis','v732-fd-monthly-review','v746-policy-market-update','v747-trend-2032','v749-from-2020','v751-scrap-12m','v752-scrap-refresh','v808-market-refresh','v882-steel-market-update','v883-firedoor-market-update','v1084-market-update','v1239-market-update','v1239-market-koshort','v1240-fdkw-slide-js','v1540-market-feed','v1542-home-steel-js'];
+const MK=IDS.map(id=>{const i=B.findIndex(b=>b.tag==='script'&&b.attrs.includes('id="'+id+'"'));if(i<0)throw new Error('missing '+id);return i;});
+const FEED_BI=MK[IDS.indexOf('v1540-market-feed')];
+const MAIN=B.findIndex(b=>b.tag==='script'&&!/id=|src=/.test(b.attrs)&&b.code.length>1000000);
+const EXTRACT=['state','esc','won','_fcBaseAggCache','_fcBase27Cache'];
+const SKIP_STYLE=/v1706-embed|v1708-market/;
+const styles=B.filter(b=>b.tag==='style'&&!SKIP_STYLE.test(b.attrs)).map(b=>'<style'+b.attrs+'>'+b.code+'</style>').join('\n');
+const ext=EXTRACT.map(n=>{const d=decl.get(n).filter(x=>x.bi===MAIN)[0];return B[32].code.slice(d.start,d.end);}).join('\n');
+const prelude=fs.readFileSync(__dirname+'/prelude.js','utf8');
+const ctrl=fs.readFileSync(__dirname+'/ctrl.js','utf8');
+const mk=MK.map(bi=>{let c=B[bi].code;if(bi===FEED_BI){const n=c.split("fetch('market_feed.json?").length-1;if(n!==1)throw new Error('feed url '+n);c=c.replace("fetch('market_feed.json?","fetch(MKP_FEED+'?");}return '<script'+B[bi].attrs+'>'+c+'</script>';}).join('\n');
+const shell=fs.readFileSync(__dirname+'/shell.html','utf8');
+const out=shell.replace('/*STYLES*/',()=>styles).replace('/*PRELUDE*/',()=>prelude+'\n'+ext+"\ntry{ var _mkpM=JSON.parse(localStorage.getItem(MKP_LS)||'null'); if(_mkpM&&typeof _mkpM==='object')state.market=_mkpM; }catch(_e){}").replace('<!--MK-->',()=>mk).replace('/*CTRL*/',()=>ctrl);
+fs.writeFileSync(process.argv[2]||'/home/claude/bookmark/market.html',out);console.log('bytes',out.length);

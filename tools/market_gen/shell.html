@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="light">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mk-ver" content="m1">
+<title>시장 동향</title>
+/*STYLES*/
+<style id="mkv-page-css">
+/* 시장 동향 원본 페이지(m1) — 매출분석도구 시장 화면만 따로 */
+html,body{background:#f8fafc}
+body{margin:0}
+.wrap.mkp{max-width:1680px;margin:0 auto;padding:16px 24px 48px}
+html.inframe .wrap.mkp{max-width:none;padding:16px 20px 40px}
+html.insales,html.insales body{background:transparent;overflow:hidden}
+html.insales .wrap.mkp{padding:0 0 8px}
+#result{margin-top:0}
+.mkp-tabs{display:none;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+html:not(.inframe) .mkp-tabs{display:flex}
+.mkp-tabs button{background:#fff;border:1px solid #cbd5e1;color:#334155;border-radius:9px;padding:9px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.mkp-tabs button.on{background:#1e3a8a;border-color:#1e3a8a;color:#fff}
+.mkp-gate{display:none;max-width:360px;margin:12vh auto 0;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:26px 24px;box-shadow:0 10px 30px rgba(15,23,42,.08);text-align:center}
+html.gate .mkp-gate{display:block}
+html.gate #result,html.gate .mkp-tabs{display:none!important}
+.mkp-gate h3{margin:0 0 6px;font-size:17px;color:#0f172a}
+.mkp-gate p{margin:0 0 16px;font-size:12.5px;color:#64748b}
+.mkp-gate input{display:block;width:100%;box-sizing:border-box;margin:0 0 8px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;font-size:14px}
+.mkp-gate button{width:100%;padding:10px;border:0;border-radius:9px;background:#1e3a8a;color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.mkp-gate button:disabled{opacity:.6}
+.mkp-gate .msg{min-height:18px;margin-top:8px;font-size:12.5px;color:#dc2626}
+.mkp-ld{padding:60px 0;text-align:center;color:#64748b;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap mkp">
+  <div class="mkp-tabs" id="mkpTabs" role="tablist">
+    <button type="button" data-mkt="market-con">🏗️ 건설동향</button><button type="button" data-mkt="market-fd">🚪 방화문시장 분석</button><button type="button" data-mkt="market-steel">🪙 철강시세 전망</button>
+  </div>
+  <form class="mkp-gate" id="mkpGate" autocomplete="on">
+    <h3>시장 동향</h3><p>매출분석도구와 같은 아이디로 로그인</p>
+    <input id="mkpId" name="username" placeholder="아이디" autocomplete="username" required>
+    <input id="mkpPw" name="password" type="password" placeholder="비밀번호" autocomplete="current-password" required>
+    <button id="mkpBtn" type="submit">로그인</button><div class="msg" id="mkpMsg"></div>
+  </form>
+  <div id="app"><div id="result"><div class="mkp-ld">불러오는 중…</div></div></div>
+</div>
+<script id="mkp-prelude">
+/*PRELUDE*/
+</script>
+<!--MK-->
+<script id="mkp-ctrl">
+/*CTRL*/
+</script>
+</body>
+</html>
