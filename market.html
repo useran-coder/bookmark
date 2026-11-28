@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="color-scheme" content="light">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="mk-ver" content="m1">
+<meta name="mk-ver" content="m2">
 <title>시장 동향</title>
 <style>
   :root{
@@ -6141,6 +6141,9 @@ html.gate #result,html.gate .mkp-tabs{display:none!important}
 .mkp-gate button:disabled{opacity:.6}
 .mkp-gate .msg{min-height:18px;margin-top:8px;font-size:12.5px;color:#dc2626}
 .mkp-ld{padding:60px 0;text-align:center;color:#64748b;font-size:14px}
+.mk-brec{flex:1 0 100%;margin-top:2px;padding-top:6px;border-top:1px dashed #bfdbfe}
+.mk-brec .mk-hi .ht{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mk-bandet[open] .mk-brec{display:none}
 </style>
 </head>
 <body>
@@ -6379,6 +6382,13 @@ function mkCheckTable(key,head){
   head.map(function(hh,i){ return '<th'+(i===0||i===4?' class="l"':'')+'>'+esc(hh)+'</th>'; }).join('')+
   '</tr></thead><tbody>'+body+'</tbody></table></div>';
 }
+/* m2 (11.28) : 최신 업데이트 배너 — 접힌 상태에서도 최근 3건 표시, 펼치면 전체 이력 */
+function mkRecent(pfx){
+ var h=mkHistory(pfx).slice(0,3); if(!h.length)return '';
+ return '<div class="mk-brec">'+h.map(function(r,i){
+  return '<div class="mk-hi'+(i===0?' new':'')+'"><span class="hd">'+esc(r[0]||'')+'</span>'+(i===0?'<span class="hb">최신</span>':'')+
+   '<span class="ht">'+mkRich(r[1]||'')+'</span></div>'; }).join('')+'</div>';
+}
 function mkBanner(collapsed,openDefault){
  var body='<div class="mk-bl"><b>현재 판단</b> — '+mkRich(mkGet('summary'))+'</div>'+
   mkCheckTable('checkTbl',['지표','기준','최신치','증감','방화문 시사점'])+
@@ -6389,7 +6399,7 @@ function mkBanner(collapsed,openDefault){
  if(collapsed){
   return '<details class="mk-banner mk-bandet"'+(openDefault?' open':'')+'><summary><span class="mk-bt">'+ttl+'</span>'+
    '<span class="mk-bsum">건설동향 요약 · 확인치 9건 · 업데이트 이력</span>'+
-   '<span class="mk-bmore">펼쳐보기 ▾</span></summary><div class="mk-bbody">'+body+'</div></details>';
+   '<span class="mk-bmore">펼쳐보기 ▾</span>'+mkRecent()+'</summary><div class="mk-bbody">'+body+'</div></details>';
  }
  return '<div class="mk-banner"><div class="mk-bt">'+ttl+'</div>'+body+'</div>';
 }
@@ -8588,7 +8598,7 @@ function marketSteel(){
  var html='<div class="mk-wrap">'+
   '<details class="mk-banner mk-bandet"><summary><span class="mk-bt">● 최신 업데이트 · '+esc(mkLatestDate('st'))+' 기준</span>'+
    '<span class="mk-bsum">철강시황 요약 · 확인치 9건 · 구매 전략 · 업데이트 이력</span>'+
-   '<span class="mk-bmore">펼쳐보기 ▾</span></summary><div class="mk-bbody">'+
+   '<span class="mk-bmore">펼쳐보기 ▾</span>'+mkRecent('st')+'</summary><div class="mk-bbody">'+
    '<div class="mk-bl"><b>현재 판단</b> — '+mkRich(mkGet('stSummary'))+'</div>'+
    mkCheckTable('stCheck',['지표','기준','최신치','증감','원가·조달 영향'])+
    '<div class="mk-bl" style="margin-top:8px"><b>구매 전략</b> — '+mkRich(mkGet('stPolicy'))+'</div>'+
@@ -9560,7 +9570,8 @@ function apply(f){
       if(!(k in MK_DEFAULT)&&!/^(st|fd|con|lh)/.test(k))return;        /* 모르는 항목은 무시 */
       var v=f.update[k]; if(v==null)return; v=String(v);
       if(hk[k]){
-        var prior=String(m.d[k]||MK_DEFAULT[k]||'').split('\n').filter(function(l){ return String(l||'').trim()&&String(l).indexOf(hk[k])!==0; }).join('\n');
+        var _nd={}; v.split('\n').forEach(function(l){ var d=String(l).split('|')[0].trim(); if(d)_nd[d]=1; }); _nd[String(hk[k]).replace(/\|$/,'')]=1;   /* m2 : 받은 이력 줄들의 날짜와 같은 옛 줄은 빼고 이어 붙임(누적 이력) */
+        var prior=String(m.d[k]||MK_DEFAULT[k]||'').split('\n').filter(function(l){ return String(l||'').trim()&&!_nd[String(l).split('|')[0].trim()]; }).join('\n');
         v=v+(prior?('\n'+prior):'');
       }
       MK_DEFAULT[k]=v; m.d[k]=v;
